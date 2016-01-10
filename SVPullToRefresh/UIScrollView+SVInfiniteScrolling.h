@@ -23,7 +23,7 @@
 
 
 enum {
-	SVInfiniteScrollingStateStopped = 0,
+    SVInfiniteScrollingStateStopped = 0,
     SVInfiniteScrollingStateTriggered,
     SVInfiniteScrollingStateLoading,
     SVInfiniteScrollingStateAll = 10
@@ -41,5 +41,9 @@ typedef NSUInteger SVInfiniteScrollingState;
 
 - (void)startAnimating;
 - (void)stopAnimating;
+
+//-(void)containingViewDidUnload;
+
+-(void)fb_observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 
 @end

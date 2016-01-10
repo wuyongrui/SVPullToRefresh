@@ -9,7 +9,8 @@
 
 #import <QuartzCore/QuartzCore.h>
 #import "UIScrollView+SVInfiniteScrolling.h"
-
+#import "FBKVOController.h"
+#import "FBKVOController.h"
 
 static CGFloat const SVInfiniteScrollingViewHeight = 60;
 
@@ -58,10 +59,12 @@ UIEdgeInsets scrollViewOriginalContentInsets;
         view.infiniteScrollingHandler = actionHandler;
         view.scrollView = self;
         [self addSubview:view];
+        view.userInteractionEnabled = NO;
         
         view.originalBottomInset = self.contentInset.bottom;
         self.infiniteScrollingView = view;
         self.showsInfiniteScrolling = YES;
+        //        self.showsInfiniteScrolling = self.contentSize.height < self.frame.size.height ? NO : YES;
     }
 }
 
@@ -86,30 +89,44 @@ UIEdgeInsets scrollViewOriginalContentInsets;
     self.infiniteScrollingView.hidden = !showsInfiniteScrolling;
     
     if(!showsInfiniteScrolling) {
-      if (self.infiniteScrollingView.isObserving) {
-        [self removeObserver:self.infiniteScrollingView forKeyPath:@"contentOffset"];
-        [self removeObserver:self.infiniteScrollingView forKeyPath:@"contentSize"];
-        [self.infiniteScrollingView resetScrollViewContentInset];
-        self.infiniteScrollingView.isObserving = NO;
-      }
+        if (self.infiniteScrollingView.isObserving) {
+            self.infiniteScrollingView.isObserving = NO;
+            [self.infiniteScrollingView resetScrollViewContentInset]; // fix bug
+            [self.infiniteScrollingView.KVOController unobserveAll];
+        }
     }
     else {
-      if (!self.infiniteScrollingView.isObserving) {
-        [self addObserver:self.infiniteScrollingView forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:nil];
-        [self addObserver:self.infiniteScrollingView forKeyPath:@"contentSize" options:NSKeyValueObservingOptionNew context:nil];
-        [self.infiniteScrollingView setScrollViewContentInsetForInfiniteScrolling];
-        self.infiniteScrollingView.isObserving = YES;
-          
-        [self.infiniteScrollingView setNeedsLayout];
-        self.infiniteScrollingView.frame = CGRectMake(0, self.contentSize.height, self.infiniteScrollingView.bounds.size.width, SVInfiniteScrollingViewHeight);
-      }
+        if (!self.infiniteScrollingView.isObserving) {
+            self.infiniteScrollingView.isObserving = YES; // fix bug #164 https://github.com/samvermette/SVPullToRefresh/issues/164
+            
+            // 更改原来的observe成FBKVOController
+            
+            if (self.infiniteScrollingView.KVOController == nil) {
+                self.infiniteScrollingView.KVOController = [FBKVOController controllerWithObserver:self.infiniteScrollingView];
+            }
+            
+            [self.infiniteScrollingView.KVOController observe:self keyPath:@"contentOffset" options:NSKeyValueObservingOptionNew block:^(id observer, id object, NSDictionary *change) {
+                [self.infiniteScrollingView fb_observeValueForKeyPath:@"contentOffset" ofObject:object change:change context:nil];
+                
+            }];
+            [self.infiniteScrollingView.KVOController observe:self keyPath:@"contentSize" options:NSKeyValueObservingOptionNew block:^(id observer, id object, NSDictionary *change) {
+                [self.infiniteScrollingView fb_observeValueForKeyPath:@"contentSize" ofObject:object change:change context:nil];
+                
+            }];
+            
+            //        [self addObserver:self.infiniteScrollingView forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:nil];
+            //        [self addObserver:self.infiniteScrollingView forKeyPath:@"contentSize" options:NSKeyValueObservingOptionNew context:nil];
+            [self.infiniteScrollingView setScrollViewContentInsetForInfiniteScrolling];
+            
+            [self.infiniteScrollingView setNeedsLayout];
+            self.infiniteScrollingView.frame = CGRectMake(0, self.contentSize.height, self.infiniteScrollingView.bounds.size.width, SVInfiniteScrollingViewHeight);
+        }
     }
 }
 
 - (BOOL)showsInfiniteScrolling {
     return !self.infiniteScrollingView.hidden;
 }
-
 @end
 
 
@@ -143,11 +160,11 @@ UIEdgeInsets scrollViewOriginalContentInsets;
     if (self.superview && newSuperview == nil) {
         UIScrollView *scrollView = (UIScrollView *)self.superview;
         if (scrollView.showsInfiniteScrolling) {
-          if (self.isObserving) {
-            [scrollView removeObserver:self forKeyPath:@"contentOffset"];
-            [scrollView removeObserver:self forKeyPath:@"contentSize"];
-            self.isObserving = NO;
-          }
+            if (self.isObserving) {
+                //            [scrollView removeObserver:self forKeyPath:@"contentOffset"];
+                //            [scrollView removeObserver:self forKeyPath:@"contentSize"];
+                self.isObserving = NO;
+            }
         }
     }
 }
@@ -181,8 +198,13 @@ UIEdgeInsets scrollViewOriginalContentInsets;
 }
 
 #pragma mark - Observing
+-(void)fb_observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+    [self observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    
+}
 
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {    
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
     if([keyPath isEqualToString:@"contentOffset"])
         [self scrollViewDidScroll:[[change valueForKey:NSKeyValueChangeNewKey] CGPointValue]];
     else if([keyPath isEqualToString:@"contentSize"]) {
@@ -194,7 +216,7 @@ UIEdgeInsets scrollViewOriginalContentInsets;
 - (void)scrollViewDidScroll:(CGPoint)contentOffset {
     if(self.state != SVInfiniteScrollingStateLoading && self.enabled) {
         CGFloat scrollViewContentHeight = self.scrollView.contentSize.height;
-        CGFloat scrollOffsetThreshold = scrollViewContentHeight-self.scrollView.bounds.size.height;
+        CGFloat scrollOffsetThreshold = MAX(0, scrollViewContentHeight-self.scrollView.bounds.size.height);
         
         if(!self.scrollView.isDragging && self.state == SVInfiniteScrollingStateTriggered)
             self.state = SVInfiniteScrollingStateLoading;
@@ -300,5 +322,15 @@ UIEdgeInsets scrollViewOriginalContentInsets;
     if(previousState == SVInfiniteScrollingStateTriggered && newState == SVInfiniteScrollingStateLoading && self.infiniteScrollingHandler && self.enabled)
         self.infiniteScrollingHandler();
 }
+
+// FIX#1 https://github.com/sonnyparlin/PullToRefresh/issues/1
+//-(void)containingViewDidUnload {
+////    if (self.isObserving) {
+////        [_scrollView removeObserver:self forKeyPath:@"contentOffset"];
+////        [_scrollView removeObserver:self forKeyPath:@"contentSize"];
+////        _scrollView = nil;
+////        self.isObserving = NO;
+////    }
+//}
 
 @end

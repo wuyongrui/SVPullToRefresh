@@ -64,4 +64,6 @@ typedef NS_ENUM(NSUInteger, SVPullToRefreshState) {
 // deprecated; use [self.scrollView triggerPullToRefresh] instead
 - (void)triggerRefresh DEPRECATED_ATTRIBUTE;
 
+-(void)fb_observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
+
 @end
