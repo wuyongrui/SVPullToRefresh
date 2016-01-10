@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name     = 'TRSVPullToRefresh'
+  s.name     = 'SVPullToRefresh'
   s.version  = '0.4.3'
   s.platform = :ios, '7.0'
   s.license  = 'MIT'
