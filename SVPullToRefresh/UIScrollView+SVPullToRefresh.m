@@ -471,13 +471,6 @@ static char UIScrollViewPullToRefreshView;
     if(!_arrow) {
         _arrow = [[SVPullToRefreshArrow alloc]initWithFrame:CGRectMake(0, self.bounds.size.height-54, 22, 48)];
         _arrow.backgroundColor = [UIColor clearColor];
-        
-        UIImageView *imageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, 22, 48)];
-        imageView.contentMode = UIViewContentModeScaleAspectFit;
-//        UIImage *img = [UIImage imageNamed:@"refreshArrow"];
-//        NSLog(@"---> %@",NSStringFromCGSize(img.size));
-        imageView.image = [UIImage imageNamed:@"refreshArrow"];
-        [_arrow addSubview:imageView];
         [self addSubview:_arrow];
     }
     return _arrow;
@@ -717,9 +710,6 @@ static char UIScrollViewPullToRefreshView;
 }
 
 - (void)drawRect:(CGRect)rect {
-    
-    return;
-    
     CGContextRef c = UIGraphicsGetCurrentContext();
     
     // the rects above the arrow
